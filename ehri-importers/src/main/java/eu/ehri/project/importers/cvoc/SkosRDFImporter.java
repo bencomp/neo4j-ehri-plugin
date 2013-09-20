@@ -20,6 +20,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import com.google.common.base.Optional;
 import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.vocabulary.DC;
 import com.hp.hpl.jena.vocabulary.RDF;
 import com.tinkerpop.blueprints.TransactionalGraph;
 import eu.ehri.project.definitions.EventTypes;
@@ -67,6 +68,15 @@ public class SkosRDFImporter {
 	private final Resource SKOS_CONCEPT = ResourceFactory.createResource("http://www.w3.org/2004/02/skos/core#Concept");
 	private final Resource SKOS_CONCEPTSCHEME = ResourceFactory.createResource("http://www.w3.org/2004/02/skos/core#ConceptScheme");
 	
+	private final Property SKOS_PREFLABEL = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#prefLabel");
+	private final Property SKOS_ALTLABEL = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#altLabel");
+	private final Property SKOS_NOTATION = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#notation");
+	private final Property SKOS_DEFINITION = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#definition");
+	private final Property SKOS_SCOPENOTE = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#scopeNote");
+	private final Property SKOS_BROADER = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#broader");
+	private final Property SKOS_NARROWER = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#narrower");
+	private final Property SKOS_RELATED = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#related");
+	private final Property SKOS_INSCHEME = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#inScheme");
 
 	// map from the internal SKOS identifier to the placeholder
 	protected Map<String, ConceptPlaceholder> conceptLookup = new HashMap<String, ConceptPlaceholder>();
@@ -101,15 +111,7 @@ public class SkosRDFImporter {
 	}
 
 	/*** management part ***/
-//
-//	public ImportLog importFile(Model model, String logMessage) {
-//		FileInputStream ios = new FileInputStream(filePath);
-//		try {
-//			return importFile(ios, logMessage);
-//		} finally {
-//			ios.close();
-//		}
-//	}
+
 
 	public ImportLog importModel(Model model, String logMessage) {
 		try {
@@ -134,53 +136,16 @@ public class SkosRDFImporter {
 			throw new RuntimeException(e);
 		}
 	}
-//
-//	private void importFile(Model model, final ActionManager.EventContext eventContext,
-//			final ImportLog log) throws  IntegrityError {
-//
-//		// XML parsing boilerplate...
-//		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-//		factory.setNamespaceAware(true);
-//		factory.setValidating(!tolerant);
-//
-//		try {
-//			DocumentBuilder builder = factory.newDocumentBuilder();
-//			if (tolerant)
-//				builder.setEntityResolver(new DummyEntityResolver());
-//			Document doc = builder.parse(ios);
-//			logger.debug("xml encoding: " + doc.getXmlEncoding());
-//			importDocWithinAction(doc, eventContext, log);
-//		} catch (ParserConfigurationException e) {
-//			logger.error(e.getMessage());
-//			throw new RuntimeException(e);
-//		} catch (SAXException e) {
-//			throw new InputParseError(e);
-//		}
-//
-//	}
+
 
 	/*** End of management part, Vocabulary/Concept code below ***/
-//
-//	/**
-//	 * Import an RDF/XML doc using the given action.
-//	 * 
-//	 * @param doc
-//	 * @param eventContext
-//	 * 
-//	 * @throws ValidationError
-//	 * @throws InvalidInputFormatError
-//	 * @throws IntegrityError 
-//	 */
-//	private void importDocWithinAction(Document doc, final ActionManager.EventContext eventContext,
-//			final ImportLog manifest) throws ValidationError,
-//			InvalidInputFormatError, IntegrityError {
-//
-//		createConcepts(doc, eventContext, manifest);
-//		createVocabularyStructure(doc, eventContext, manifest);
-//	}
+
 
 	/**
-	 * Do the Concept data extraction and create all the Concepts 
+	 * Do the Concept data extraction and create all the Concepts and ConceptDescriptions.
+	 * Concepts get properties: IDENTIFIER_KEY, CONCEPT_URL
+	 * ConceptDefinitions get properties: name (= prefLabel), altLabel (= altLabel),
+	 * 	definition, scopeNote, title, latitude, longitude
 	 * 
 	 * @param model
 	 * @param action
@@ -198,101 +163,184 @@ public class SkosRDFImporter {
 		
 		// For each skos:Concept ...
 		for (Resource skosConcept : skosConcepts.toList()) {
-			logger.debug("New Concept: " + skosConcept.getURI());
-			try {
-				// ... get statements about the concept 
-				Model m2 = model.query(new SimpleSelector(skosConcept, null, (RDFNode)null));
-				
-				Map<String, Object> data = new HashMap<String, Object>();
-				
-				
-				
-				// ... create a Bundle consisting of Concept and related ConceptDescriptions
-				Bundle unit = new Bundle(EntityClass.CVOC_CONCEPT, data);//constructBundleForConcept(skosConcept);
+			logger.debug("Concept: " + skosConcept.getURI());
+			
 
-				BundleDAO persister = new BundleDAO(framedGraph, vocabulary);
-				Mutation<Concept> mutation = persister.createOrUpdate(unit,
-						Concept.class);
-				Concept frame = mutation.getNode();
+			// ... create a Bundle consisting of Concept and related ConceptDescriptions
+			Bundle unit = createBundleForConcept(model, skosConcept);//constructBundleForConcept(skosConcept);
+
+			BundleDAO persister = new BundleDAO(framedGraph, vocabulary);
+			Mutation<Concept> mutation = persister.createOrUpdate(unit,
+					Concept.class);
+			Concept frame = mutation.getNode();
 
 
-				// Set the vocabulary/concept relationship
-				handleCallbacks(mutation, manifest);
+			// Set the vocabulary/concept relationship
+			handleCallbacks(mutation, manifest);
 
-				if (mutation.created() || mutation.unchanged()) {
-					// when concept was successfully persisted!
-					action.addSubjects(frame);
-				}
-
-				
+			if (mutation.created() || mutation.unchanged()) {
+				// when concept was successfully persisted!
+				action.addSubjects(frame);
+			}
 
 
-				// FIXME: Handle case where relationships have changed on update???
-				if (mutation.created()) {
-					frame.setVocabulary(vocabulary);
-					frame.setPermissionScope(vocabulary);
 
-					// Create and add a ConceptPlaceholder
-					// for making the vocabulary (relation) structure in the next step
-					List<String> broaderIds = getBroaderConceptIds(element);
-					logger.debug("Concept has " + broaderIds.size()
-							+ " broader ids: " + broaderIds.toString());
-					List<String> relatedIds = getRelatedConceptIds(element);
-					logger.debug("Concept has " + relatedIds.size()
-							+ " related ids: " + relatedIds.toString());
 
-					String storeId = unit.getId();//id;
-					String skosId = (String)unit.getDataValue(CONCEPT_URL);
-					// referal
-					logger.debug("Concept store id = " + storeId + ", skos id = " + skosId);
-					conceptLookup.put(skosId, new ConceptPlaceholder(storeId, broaderIds, relatedIds, frame));
-				}
-			} catch (ValidationError validationError) {
-				if (tolerant) {
-					logger.error(validationError.getMessage());
-				} else {
-					throw validationError;
-				}
+			// FIXME: Handle case where relationships have changed on update???
+			if (mutation.created()) {
+				frame.setVocabulary(vocabulary);
+				frame.setPermissionScope(vocabulary);
+
+				// Create and add a ConceptPlaceholder
+				// for making the vocabulary (relation) structure in the next step
+				List<String> broaderIds = getBroaderConceptIds(model, skosConcept);
+				logger.debug("Concept has " + broaderIds.size()
+						+ " broader ids: " + broaderIds.toString());
+				List<String> relatedIds = getRelatedConceptIds(model, skosConcept);
+				logger.debug("Concept has " + relatedIds.size()
+						+ " related ids: " + relatedIds.toString());
+
+				String storeId = unit.getId();//id;
+				String skosId = (String)unit.getDataValue(CONCEPT_URL);
+				// Referral
+				logger.debug("Concept store id = " + storeId + ", skos id = " + skosId);
+				conceptLookup.put(skosId, new ConceptPlaceholder(storeId, broaderIds, relatedIds, frame));
 			}
 		}
 	}
 		    	
 	
 
-	/**
-	 * Extract data and construct the bundle for a new Concept
-	 * 
-	 * @param skosConcept
-	 * @throws ValidationError
-	 */
-	private Bundle constructBundleForConcept(Resource skosConcept) throws ValidationError {
-		Bundle unit = new Bundle(EntityClass.CVOC_CONCEPT,
-				extractCvocConcept(skosConcept));
+	private List<String> getRelatedConceptIds(Model model, Resource skosConcept) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
-		// add the description data to the concept as relationship
-		Map<String, Object> descriptions = extractCvocConceptDescriptions(skosConcept);
+	private List<String> getBroaderConceptIds(Model model, Resource skosConcept) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
+	private Bundle createBundleForConcept(Model model, Resource skosConcept) {
+		// ... get statements about the concept 
+		Model m2 = model.query(new SimpleSelector(skosConcept, null, (RDFNode)null));
+		logger.debug("Number of statements: " + m2.size());
+
+		// Create data map for Concept
+		Map<String, Object> data = new HashMap<String, Object>();
+		data.put(Ontology.IDENTIFIER_KEY, skosConcept.getLocalName());
+		data.put(CONCEPT_URL, skosConcept.getURI());
+
+		// ... count languages and create a Bundle for each ConceptDescription
+		Map<String, Object> descriptions = new HashMap<String, Object>();
+		Map<String, Object> rel = new HashMap<String, Object>();
+		
+		StmtIterator stmnts = m2.listStatements();
+		while(stmnts.hasNext()) {
+			Statement s = stmnts.next();
+			logger.debug(s.toString());
+
+			//						extractDescriptions(descriptions)
+			// get a Map for the language
+			Map<String, Object> desc; 
+			if (descriptions.containsKey(s.getLanguage())) {
+				desc = (Map<String, Object>) descriptions.get(s.getLanguage());
+			} else {
+				desc = new HashMap<String, Object>();
+				desc.put(Ontology.LANGUAGE_OF_DESCRIPTION, s.getLanguage());
+				descriptions.put(s.getLanguage(), desc);
+			}
+			
+			Property pred = s.getPredicate();
+			String value = s.getLiteral().getString();
+
+			if (pred.equals(SKOS_PREFLABEL)) 
+			{
+				logger.debug("skos:prefLabel found");
+				desc.put(Ontology.NAME_KEY, value);
+			} 
+			else if (pred.equals(SKOS_ALTLABEL)) 
+			{
+				logger.debug("skos:altLabel found");
+				desc.put(Ontology.CONCEPT_ALTLABEL, value);
+			} 
+			else if (pred.equals(SKOS_DEFINITION)) 
+			{
+				logger.debug("skos:definition found");
+				desc.put(Ontology.CONCEPT_DEFINITION, value);
+			} 
+			else if (pred.equals(SKOS_SCOPENOTE)) 
+			{
+				logger.debug("skos:definition found");
+				desc.put(Ontology.CONCEPT_SCOPENOTE, value);
+			} 
+			else if (pred.equals(DC.title)) 
+			{
+				logger.debug("dc:title found, put it as altLabel");
+				desc.put(Ontology.CONCEPT_ALTLABEL, value);
+			}
+			else 
+			{
+				logger.debug("undetermined property found: " + pred.getURI());
+				rel.put(pred.getURI(), s.getObject().toString());
+			}
+		}
+		
+		Bundle cBundle = new Bundle(EntityClass.CVOC_CONCEPT, data);
+		
 		for (String key : descriptions.keySet()) {
 			logger.debug("description for: " + key);
 			Map<String, Object> d = (Map<String, Object>) descriptions.get(key);
 			logger.debug("languageCode = " + d.get(Ontology.LANGUAGE_OF_DESCRIPTION));
 
 			Bundle descBundle = new Bundle(EntityClass.CVOC_CONCEPT_DESCRIPTION, d);
-			Map<String, Object> rel = extractRelations(skosConcept, "owl:sameAs");
+			// Get undetermined relationships
+//			extractRelations(skosConcept, "owl:sameAs");
 			if(!rel.isEmpty()) {
 				descBundle = descBundle.withRelation(Ontology.HAS_ACCESS_POINT,
 						new Bundle(EntityClass.UNDETERMINED_RELATIONSHIP, rel));
 			}
-
-			// NOTE maybe test if prefLabel is there?
-			unit = unit.withRelation(Ontology.DESCRIPTION_FOR_ENTITY, descBundle);
+			
+			cBundle = cBundle.withRelation(Ontology.DESCRIPTION_FOR_ENTITY, descBundle);
 		}
-
-		// get an ID for the GraphDB
-		String id = unit.getType().getIdgen()
-				.generateId(EntityClass.CVOC_CONCEPT, vocabulary, unit);
-		return unit.withId(id);
+		
+		return cBundle;
 	}
+
+//	/**
+//	 * Extract data and construct the bundle for a new Concept
+//	 * 
+//	 * @param skosConcept
+//	 * @throws ValidationError
+//	 */
+//	private Bundle constructBundleForConcept(Resource skosConcept) throws ValidationError {
+//		Bundle unit = new Bundle(EntityClass.CVOC_CONCEPT,
+//				extractCvocConcept(skosConcept));
+//
+//		// add the description data to the concept as relationship
+//		Map<String, Object> descriptions = extractCvocConceptDescriptions(skosConcept);
+//
+//		for (String key : descriptions.keySet()) {
+//			logger.debug("description for: " + key);
+//			Map<String, Object> d = (Map<String, Object>) descriptions.get(key);
+//			logger.debug("languageCode = " + d.get(Ontology.LANGUAGE_OF_DESCRIPTION));
+//
+//			Bundle descBundle = new Bundle(EntityClass.CVOC_CONCEPT_DESCRIPTION, d);
+//			Map<String, Object> rel = extractRelations(skosConcept, "owl:sameAs");
+//			if(!rel.isEmpty()) {
+//				descBundle = descBundle.withRelation(Ontology.HAS_ACCESS_POINT,
+//						new Bundle(EntityClass.UNDETERMINED_RELATIONSHIP, rel));
+//			}
+//
+//			// NOTE maybe test if prefLabel is there?
+//			unit = unit.withRelation(Ontology.DESCRIPTION_FOR_ENTITY, descBundle);
+//		}
+//
+//		// get an ID for the GraphDB
+//		String id = unit.getType().getIdgen()
+//				.generateId(EntityClass.CVOC_CONCEPT, vocabulary, unit);
+//		return unit.withId(id);
+//	}
 
 	/**
 	 * Get the list of id's of the Concept's broader concepts
@@ -398,7 +446,7 @@ public class SkosRDFImporter {
 	/**
 	 * Create the Broader to Narrower Concept relation
 	 * Note that we cannot use the storeId's and retrieve them from the database. 
-	 * we need to use the Concept objects from the placeholders in the lookup. 
+	 * we need to use the Concept objects )from the placeholders in the lookup. 
 	 * 
 	 * @param bcp
 	 * @param ncp
@@ -498,39 +546,39 @@ public class SkosRDFImporter {
 	 * @param conceptNode
 	 * @throws ValidationError
 	 */
-	Map<String, Object> extractCvocConcept(Node conceptNode)
-			throws ValidationError {
-		Map<String, Object> dataMap = new HashMap<String, Object>();
+//	Map<String, Object> extractCvocConcept(Node conceptNode)
+//			throws ValidationError {
+//		Map<String, Object> dataMap = new HashMap<String, Object>();
+//
+//		// are we using the rdf:about attribute as 'identifier'
+//		Node namedItem = conceptNode.getAttributes().getNamedItem("rdf:about");
+//		String value = namedItem.getNodeValue();
+//		// Hack! Use everything after the last '/'
+//		String idvalue = value.substring(value.lastIndexOf('/') + 1);
+//		dataMap.put(Ontology.IDENTIFIER_KEY, idvalue);
+//		dataMap.put(CONCEPT_URL, value);
+//
+//		logger.debug("Extracting Concept id: " + dataMap.get(Ontology.IDENTIFIER_KEY));
+//
+//		return dataMap;
+//	}
 
-		// are we using the rdf:about attribute as 'identifier'
-		Node namedItem = conceptNode.getAttributes().getNamedItem("rdf:about");
-		String value = namedItem.getNodeValue();
-		// Hack! Use everything after the last '/'
-		String idvalue = value.substring(value.lastIndexOf('/') + 1);
-		dataMap.put(Ontology.IDENTIFIER_KEY, idvalue);
-		dataMap.put(CONCEPT_URL, value);
-
-		logger.debug("Extracting Concept id: " + dataMap.get(Ontology.IDENTIFIER_KEY));
-
-		return dataMap;
-	}
-
-	private Map<String, Object> extractRelations(Element element, String skosName) {
-		Map<String, Object> relationNode = new HashMap<String, Object>();
-
-		NodeList textNodeList = element.getElementsByTagName(skosName);
-		for (int i = 0; i < textNodeList.getLength(); i++) {
-			Node textNode = textNodeList.item(i);
-			// get value
-			String text = textNode.getTextContent();
-			logger.debug("text: \"" + text + "\", skos name: " + skosName);
-
-			// add to all descriptionData maps
-			relationNode.put(Ontology.ANNOTATION_TYPE, skosName);
-			relationNode.put(Ontology.NAME_KEY, text);
-		}
-		return relationNode;
-	}
+//	private Map<String, Object> extractRelations(Element element, String skosName) {
+//		Map<String, Object> relationNode = new HashMap<String, Object>();
+//
+//		NodeList textNodeList = element.getElementsByTagName(skosName);
+//		for (int i = 0; i < textNodeList.getLength(); i++) {
+//			Node textNode = textNodeList.item(i);
+//			// get value
+//			String text = textNode.getTextContent();
+//			logger.debug("text: \"" + text + "\", skos name: " + skosName);
+//
+//			// add to all descriptionData maps
+//			relationNode.put(Ontology.ANNOTATION_TYPE, skosName);
+//			relationNode.put(Ontology.NAME_KEY, text);
+//		}
+//		return relationNode;
+//	}
 	/**
 	 * Extract the Descriptions information for a concept
 	 * 
@@ -565,26 +613,26 @@ public class SkosRDFImporter {
 		return descriptionData;
 	}
 
-	private void extractAndAddToAllMapsSingleValuedTextToDescriptionData(Map<String, Object> descriptionData, 
-			String textName, String skosName, Element conceptElement) {
-		NodeList textNodeList = conceptElement.getElementsByTagName(skosName);
-		for(int i=0; i<textNodeList.getLength(); i++){
-			Node textNode = textNodeList.item(i);
-			// get value
-			String text = textNode.getTextContent();
-			logger.debug("text: \"" + text + "\", skos name: " + skosName + ", property: " + textName);
-
-			// add to all descriptionData maps
-			for(String key : descriptionData.keySet()){
-				Object map = descriptionData.get(key);
-				if(map instanceof Map){
-					((Map<String, Object>)map).put(textName, text);
-				}else{
-					logger.warn(key + " no description map found");
-				}
-			}
-		}    
-	}
+//	private void extractAndAddToAllMapsSingleValuedTextToDescriptionData(Map<String, Object> descriptionData, 
+//			String textName, String skosName, Element conceptElement) {
+//		NodeList textNodeList = conceptElement.getElementsByTagName(skosName);
+//		for(int i=0; i<textNodeList.getLength(); i++){
+//			Node textNode = textNodeList.item(i);
+//			// get value
+//			String text = textNode.getTextContent();
+//			logger.debug("text: \"" + text + "\", skos name: " + skosName + ", property: " + textName);
+//
+//			// add to all descriptionData maps
+//			for(String key : descriptionData.keySet()){
+//				Object map = descriptionData.get(key);
+//				if(map instanceof Map){
+//					((Map<String, Object>)map).put(textName, text);
+//				}else{
+//					logger.warn(key + " no description map found");
+//				}
+//			}
+//		}    
+//	}
 
 	/**
 	 * Extract a 'single valued' textual description property and add it to the data
