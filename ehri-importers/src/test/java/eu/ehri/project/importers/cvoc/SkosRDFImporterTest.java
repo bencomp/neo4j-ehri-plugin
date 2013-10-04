@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import eu.ehri.project.definitions.Ontology;
 import eu.ehri.project.importers.AbstractImporterTest;
+import eu.ehri.project.importers.ImportLog;
 import eu.ehri.project.models.base.Description;
 import eu.ehri.project.models.cvoc.Concept;
 import eu.ehri.project.models.cvoc.ConceptDescription;
@@ -47,7 +48,11 @@ public class SkosRDFImporterTest extends AbstractImporterTest {
 		int beforeNodeCount = getNodeCount(graph);
         
 		SkosRDFHandler handler = new SkosRDFHandler(FILENAME);
-		// LOAD HERE
+        Vocabulary vocabulary = manager.getFrame("cvoc1", Vocabulary.class);
+        SkosRDFImporter importer = new SkosRDFImporter(graph, validUser, vocabulary);
+        
+        ImportLog log = importer.importModel(handler.getModel(), logMessage);
+		
 		
 		int afterNodeCount = getNodeCount(graph);
 		/**

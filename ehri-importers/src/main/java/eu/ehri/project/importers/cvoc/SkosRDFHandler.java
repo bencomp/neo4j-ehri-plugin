@@ -87,4 +87,8 @@ public class SkosRDFHandler {
 			// 
 		}
 	}
+
+	public Model getModel() {
+		return model;
+	}
 }
