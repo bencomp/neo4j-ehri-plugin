@@ -61,6 +61,9 @@ public class SkosRDFImporterTest extends AbstractImporterTest {
          *  - 1386 new descriptions (1 per prefLabel)
          *  - 1 new Event
          *  - 882 new event links (1 for user, 1 per concept)
+         *  ------ +
+         *   + x + 1386 (is what JUnit says)
+         *   + 3150
          */
         assertEquals(beforeNodeCount + 881 + 1386 + 1 + 882, afterNodeCount);
 

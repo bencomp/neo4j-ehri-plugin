@@ -14,9 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 
 import com.google.common.base.Optional;
 import com.hp.hpl.jena.rdf.model.*;
@@ -30,10 +27,6 @@ import eu.ehri.project.persistance.*;
 import eu.ehri.project.utils.TxCheckedNeo4jGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -63,7 +56,6 @@ public class SkosRDFImporter {
 	protected Boolean tolerant = false;
 	protected final Vocabulary vocabulary;
 
-	private static final String CONCEPT_URL = "url";
 	
 	private final Resource SKOS_CONCEPT = ResourceFactory.createResource("http://www.w3.org/2004/02/skos/core#Concept");
 	private final Resource SKOS_CONCEPTSCHEME = ResourceFactory.createResource("http://www.w3.org/2004/02/skos/core#ConceptScheme");
@@ -77,6 +69,9 @@ public class SkosRDFImporter {
 	private final Property SKOS_NARROWER = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#narrower");
 	private final Property SKOS_RELATED = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#related");
 	private final Property SKOS_INSCHEME = ResourceFactory.createProperty("http://www.w3.org/2004/02/skos/core#inScheme");
+	
+	private final Property GEO_LAT = ResourceFactory.createProperty("http://www.w3.org/2003/01/geo/wgs84_pos#lat");
+	private final Property GEO_LONG = ResourceFactory.createProperty("http://www.w3.org/2003/01/geo/wgs84_pos#long");
 
 	// map from the internal SKOS identifier to the placeholder
 	protected Map<String, ConceptPlaceholder> conceptLookup = new HashMap<String, ConceptPlaceholder>();
@@ -130,6 +125,7 @@ public class SkosRDFImporter {
 			// Do the import...
 //			importFile(model, eventContext, log);
 			createConcepts(model, eventContext, log);
+			
 			createVocabularyStructure(model, eventContext, log);
 			// If nothing was imported, remove the action...
 			commitOrRollback(log.hasDoneWork());
@@ -149,7 +145,7 @@ public class SkosRDFImporter {
 
 	/**
 	 * Do the Concept data extraction and create all the Concepts and ConceptDescriptions.
-	 * Concepts get properties: IDENTIFIER_KEY, CONCEPT_URL
+	 * Concepts get properties: IDENTIFIER_KEY, Ontology.CONCEPT_URL
 	 * ConceptDefinitions get properties: name (= prefLabel), altLabel (= altLabel),
 	 * 	definition, scopeNote, title, latitude, longitude
 	 * 
@@ -188,7 +184,8 @@ public class SkosRDFImporter {
 				// when concept was successfully persisted!
 				action.addSubjects(frame);
 			}
-
+			
+			
 
 
 
@@ -207,7 +204,7 @@ public class SkosRDFImporter {
 						+ " related ids: " + relatedIds.toString());
 
 				String storeId = unit.getId();//id;
-				String skosId = (String)unit.getDataValue(CONCEPT_URL);
+				String skosId = (String)unit.getDataValue(Ontology.CONCEPT_URL);
 				// Referral
 				logger.debug("Concept store id = " + storeId + ", skos id = " + skosId);
 				conceptLookup.put(skosId, new ConceptPlaceholder(storeId, broaderIds, relatedIds, frame));
@@ -251,65 +248,16 @@ public class SkosRDFImporter {
 
 		// Create data map for Concept
 		Map<String, Object> data = new HashMap<String, Object>();
-		data.put(Ontology.IDENTIFIER_KEY, skosConcept.getLocalName());
-		data.put(CONCEPT_URL, skosConcept.getURI());
+		data.put(Ontology.IDENTIFIER_KEY, skosConcept.getURI());
+		data.put(Ontology.CONCEPT_URL, skosConcept.getURI());
 
 		// ... count languages and create a Bundle for each ConceptDescription
-		Map<String, Object> descriptionData = new HashMap<String, Object>();
+//		Map<String, Object> descriptionData = new HashMap<String, Object>();
 		Map<String, Object> rel = new HashMap<String, Object>();
 		
-		Map<String, Object> descriptions = extractCvocConceptDescriptions(model, skosConcept);
+		Map<String, Object> descriptionData = extractCvocConceptDescriptions(model, skosConcept);
 		
-//		StmtIterator stmnts = m2.listStatements();
-//		while(stmnts.hasNext()) {
-//			Statement s = stmnts.next();
-//			logger.debug(s.toString());
-//
-//			//						extractDescriptions(descriptions)
-//			// get a Map for the language
-//			Map<String, Object> desc = getOrCreateDescriptionForLanguage(descriptionData, lang); 
-//			if (descriptionData.containsKey(s.getLanguage())) {
-//				desc = (Map<String, Object>) descriptionData.get(s.getLanguage());
-//			} else {
-//				desc = new HashMap<String, Object>();
-//				desc.put(Ontology.LANGUAGE_OF_DESCRIPTION, s.getLanguage());
-//				descriptionData.put(s.getLanguage(), desc);
-//			}
-//			
-//			Property pred = s.getPredicate();
-//			String value = s.getLiteral().getString();
-//
-//			if (pred.equals(SKOS_PREFLABEL)) 
-//			{
-//				logger.debug("skos:prefLabel found");
-//				desc.put(Ontology.NAME_KEY, value);
-//			} 
-//			else if (pred.equals(SKOS_ALTLABEL)) 
-//			{
-//				logger.debug("skos:altLabel found");
-//				desc.put(Ontology.CONCEPT_ALTLABEL, value);
-//			} 
-//			else if (pred.equals(SKOS_DEFINITION)) 
-//			{
-//				logger.debug("skos:definition found");
-//				desc.put(Ontology.CONCEPT_DEFINITION, value);
-//			} 
-//			else if (pred.equals(SKOS_SCOPENOTE)) 
-//			{
-//				logger.debug("skos:definition found");
-//				desc.put(Ontology.CONCEPT_SCOPENOTE, value);
-//			} 
-//			else if (pred.equals(DC.title)) 
-//			{
-//				logger.debug("dc:title found, put it as altLabel");
-//				desc.put(Ontology.CONCEPT_ALTLABEL, value);
-//			}
-//			else 
-//			{
-//				logger.debug("undetermined property found: " + pred.getURI());
-//				rel.put(pred.getURI(), s.getObject().toString());
-//			}
-//		}
+
 		
 		Bundle cBundle = new Bundle(EntityClass.CVOC_CONCEPT, data);
 		
@@ -329,7 +277,12 @@ public class SkosRDFImporter {
 			cBundle = cBundle.withRelation(Ontology.DESCRIPTION_FOR_ENTITY, descBundle);
 		}
 		
-		return cBundle;
+		// get an ID for the GraphDB
+		String id = cBundle.getType().getIdgen()
+				.generateId(EntityClass.CVOC_CONCEPT, vocabulary, cBundle);
+
+		logger.debug("has description: " + cBundle.hasRelations(Ontology.DESCRIPTION_FOR_ENTITY));
+		return cBundle.withId(id);
 	}
 
 //	/**
@@ -397,14 +350,14 @@ public class SkosRDFImporter {
 	/**
 	 * Create the broader/narrower relations for all the concepts
 	 * 
-	 * @param doc
+	 * @param model
 	 * @param eventContext
 	 * @param manifest
 	 * @throws ValidationError
 	 * @throws InvalidInputFormatError
 	 * @throws IntegrityError
 	 */
-	private void createBroaderNarrowerRelations(Model doc, final EventContext eventContext,
+	private void createBroaderNarrowerRelations(Model model, final EventContext eventContext,
 			final ImportLog manifest) throws ValidationError,
 			InvalidInputFormatError, IntegrityError {
 
@@ -566,19 +519,19 @@ public class SkosRDFImporter {
 				Ontology.CONCEPT_ALTLABEL, model, SKOS_ALTLABEL, skosConcept);
 		// just allow multiple, its not forbidden by Skos
 		extractAndAddMultiValuedTextToDescriptionData(descriptionData, 
-				Ontology.CONCEPT_SCOPENOTE, "skos:scopeNote", skosConcept);
+				Ontology.CONCEPT_SCOPENOTE, model, SKOS_SCOPENOTE, skosConcept);
 		// just allow multiple, its not forbidden by Skos
 		extractAndAddMultiValuedTextToDescriptionData(descriptionData, 
-				Ontology.CONCEPT_DEFINITION, "skos:definition", skosConcept);
+				Ontology.CONCEPT_DEFINITION, model, SKOS_DEFINITION, skosConcept);
 		//<geo:lat>52.43333333333333</geo:lat>
-		extractAndAddToAllMapsSingleValuedTextToDescriptionData(descriptionData, "latitude", "geo:lat", skosConcept);
+		extractAndAddToAllMapsSingleValuedTextToDescriptionData(descriptionData, Ontology.CONCEPT_LAT, model, GEO_LAT, skosConcept);
 		//<geo:long>20.716666666666665</geo:long>
-		extractAndAddToAllMapsSingleValuedTextToDescriptionData(descriptionData, "longitude", "geo:long", skosConcept);
+		extractAndAddToAllMapsSingleValuedTextToDescriptionData(descriptionData, Ontology.CONCEPT_LONG, model, GEO_LONG, skosConcept);
 
 		//<owl:sameAs>http://www.yadvashem.org/yv/he/research/ghettos_encyclopedia/ghetto_details.asp?cid=1</owl:sameAs>
 		//TODO: must be an UndeterminedRelation, which can then later be resolved
 
-		// NOTE we could try to also add everything else, using the skos tagname as a key?
+		// NOTE we could try to also add everything else, using the SKOS tagname as a key?
 
 		return descriptionData;
 	}
@@ -605,16 +558,50 @@ public class SkosRDFImporter {
 //	}
 
 	/**
+	 * Put the values associated with the resource-property combo in all descriptions
+	 * 
+	 * @param descriptionData
+	 * @param graphPropertyLabel
+	 * @param model
+	 * @param skosProperty
+	 * @param skosConcept
+	 */
+	private void extractAndAddToAllMapsSingleValuedTextToDescriptionData(
+			Map<String, Object> descriptionData, String graphPropertyLabel,
+			Model model, Property skosProperty, Resource skosConcept) {
+		
+		NodeIterator submodel = model.listObjectsOfProperty(skosConcept, skosProperty);
+		
+		while(submodel.hasNext()){
+			Literal lit = (Literal) submodel.next();
+			// get value
+			String text = lit.getString();
+			logger.debug("text: \"" + text +  "\"" + ", skos name: " + skosProperty.getLocalName());
+
+			// add to all descriptionData maps
+			for(String key : descriptionData.keySet()){
+				Object map = descriptionData.get(key);
+				if(map instanceof Map){
+					((Map<String, Object>)map).put(graphPropertyLabel, text);
+				}else{
+					logger.warn(key + " no description map found");
+				}
+			}
+			
+		}
+	}
+
+	/**
 	 * Extract a 'single valued' textual description property and add it to the data
 	 * 
 	 * @param descriptionData
-	 * @param textName Graph node property label
+	 * @param graphPropertyLabel Graph node property label
 	 * @param model 
 	 * @param skosProperty DatatypeProperty to find values for
 	 * @param skosConcept
 	 */
 	private void extractAndAddToLanguageMapSingleValuedTextToDescriptionData(Map<String, Object> descriptionData, 
-			String textName, Model model, Property skosProperty, Resource skosConcept) {
+			String graphPropertyLabel, Model model, Property skosProperty, Resource skosConcept) {
 
 		NodeIterator submodel = model.listObjectsOfProperty(skosConcept, skosProperty);
 		
@@ -623,11 +610,11 @@ public class SkosRDFImporter {
 			String lang = lit.getLanguage();
 			// get value
 			String text = lit.getString();
-			logger.debug("text: \"" + text + "\" lang: \"" + lang + "\"" + ", skos name: " + skosProperty);
+			logger.debug("text: \"" + text + "\" lang: \"" + lang + "\"" + ", skos name: " + skosProperty.getLocalName());
 
 			// add to descriptionData
 			Map<String, Object> d = getOrCreateDescriptionForLanguage(descriptionData, lang);
-			d.put(textName, text); // only one item with this name per description
+			d.put(graphPropertyLabel, text); // only one item with this name per description
 		}    	
 	}
 
@@ -635,12 +622,12 @@ public class SkosRDFImporter {
 	 * Extract a 'multi valued' textual description property and add it to the data (list)
 	 * 
 	 * @param descriptionData
-	 * @param textName
-	 * @param skosName
+	 * @param graphPropertyLabel Graph node property label
+	 * @param skosProperty
 	 * @param skosConcept
 	 */
 	private void extractAndAddMultiValuedTextToDescriptionData(Map<String, Object> descriptionData, 
-			String textName, String skosName, Model model, Property skosProperty, Resource skosConcept) {
+			String graphPropertyLabel, Model model, Property skosProperty, Resource skosConcept) {
 
 		NodeIterator submodel = model.listObjectsOfProperty(skosConcept, skosProperty);
 		
@@ -649,26 +636,18 @@ public class SkosRDFImporter {
 			String lang = lit.getLanguage();
 			// get value
 			String text = lit.getString();
-//		NodeList textNodeList = skosConcept.getElementsByTagName(skosName);
-//		for(int i=0; i<textNodeList.getLength(); i++){
-//			Node textNode = textNodeList.item(i);
-			// get lang attribute, we must have that!
-//			Node langItem = textNode.getAttributes().getNamedItem("xml:lang");
-//			String lang = langItem.getNodeValue();
-			// get value
-//			String text = textNode.getTextContent();
-			logger.debug("text: \"" + text + "\" lang: \"" + lang + "\"" + ", skos name: " + skosName);
+			logger.debug("text: \"" + text + "\" lang: \"" + lang + "\"" + ", skos name: " + skosProperty.getLocalName());
 			// add to descriptionData
 			Map<String, Object> d = getOrCreateDescriptionForLanguage(descriptionData, lang);
 			// get the array if it is there, otherwise create it first
-			if (d.containsKey(textName)) {
+			if (d.containsKey(graphPropertyLabel)) {
 				// should be a list, add it
-				((List<String>)d.get(textName)).add(text);
+				((List<String>)d.get(graphPropertyLabel)).add(text);
 			} else {
 				// create a list first
 				List<String > textList = new ArrayList<String>();
 				textList.add(text);
-				d.put(textName, textList);
+				d.put(graphPropertyLabel, textList);
 			}
 		}    	
 	}    
