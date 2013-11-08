@@ -30,7 +30,7 @@ public class SkosRDFHandler {
 		logger.debug("Create an empty Model");
 		this.model = ModelFactory.createDefaultModel() ;
 		this.model.read(filename);
-		logger.debug("end of constructor");
+		
 	}
 	
 	public SkosRDFHandler(String filename, SkosRDFImporter importer) {
@@ -49,9 +49,8 @@ public class SkosRDFHandler {
 	 * Return the number of subjects in the model.
 	 */
 	public long getSubjectCount() {
-		logger.debug("start of subject count");
 		Model nmodel = this.model.query(new SimpleSelector(null, RDF.type, SKOS_CONCEPT));
-		logger.debug("end of subject count");
+		logger.debug("Subjects counted: " + nmodel.size());
 		return nmodel.size();
 	}
 	
@@ -59,7 +58,7 @@ public class SkosRDFHandler {
 	 * Print 10 loaded concepts.
 	 */
 	public void listConcepts() {
-		logger.debug("start of concept listing");
+//		logger.debug("start of concept listing");
 		ResIterator subjects = model.listSubjects();
 		Resource r;
 		for(int i=0; i < 10 && subjects.hasNext(); i++) {
@@ -67,7 +66,7 @@ public class SkosRDFHandler {
 //			logger.debug("s: " + r);
 			System.out.println("s: "+r);
 		}
-		logger.debug("end of concept listing");
+//		logger.debug("end of concept listing");
 	}
 	
 	/*

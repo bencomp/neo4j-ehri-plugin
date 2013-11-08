@@ -5,9 +5,6 @@ package eu.ehri.project.importers.cvoc;
 
 
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,8 +33,6 @@ import com.tinkerpop.frames.FramedGraph;
 import eu.ehri.project.exceptions.IntegrityError;
 import eu.ehri.project.exceptions.ValidationError;
 import eu.ehri.project.importers.ImportLog;
-import eu.ehri.project.importers.exceptions.InputParseError;
-import eu.ehri.project.importers.exceptions.InvalidXmlDocument;
 import eu.ehri.project.importers.exceptions.InvalidInputFormatError;
 import eu.ehri.project.models.EntityClass;
 import eu.ehri.project.models.annotations.EntityType;
@@ -187,9 +182,7 @@ public class SkosRDFImporter {
 			
 			
 
-
-
-			// FIXME: Handle case where relationships have changed on update???
+			// FIXME: Handle case where relationships have changed on update?
 			if (mutation.created()) {
 				frame.setVocabulary(vocabulary);
 				frame.setPermissionScope(vocabulary);
@@ -285,40 +278,7 @@ public class SkosRDFImporter {
 		return cBundle.withId(id);
 	}
 
-//	/**
-//	 * Extract data and construct the bundle for a new Concept
-//	 * 
-//	 * @param skosConcept
-//	 * @throws ValidationError
-//	 */
-//	private Bundle constructBundleForConcept(Resource skosConcept) throws ValidationError {
-//		Bundle unit = new Bundle(EntityClass.CVOC_CONCEPT,
-//				extractCvocConcept(skosConcept));
-//
-//		// add the description data to the concept as relationship
-//		Map<String, Object> descriptions = extractCvocConceptDescriptions(skosConcept);
-//
-//		for (String key : descriptions.keySet()) {
-//			logger.debug("description for: " + key);
-//			Map<String, Object> d = (Map<String, Object>) descriptions.get(key);
-//			logger.debug("languageCode = " + d.get(Ontology.LANGUAGE_OF_DESCRIPTION));
-//
-//			Bundle descBundle = new Bundle(EntityClass.CVOC_CONCEPT_DESCRIPTION, d);
-//			Map<String, Object> rel = extractRelations(skosConcept, "owl:sameAs");
-//			if(!rel.isEmpty()) {
-//				descBundle = descBundle.withRelation(Ontology.HAS_ACCESS_POINT,
-//						new Bundle(EntityClass.UNDETERMINED_RELATIONSHIP, rel));
-//			}
-//
-//			// NOTE maybe test if prefLabel is there?
-//			unit = unit.withRelation(Ontology.DESCRIPTION_FOR_ENTITY, descBundle);
-//		}
-//
-//		// get an ID for the GraphDB
-//		String id = unit.getType().getIdgen()
-//				.generateId(EntityClass.CVOC_CONCEPT, vocabulary, unit);
-//		return unit.withId(id);
-//	}
+
 
 
 
@@ -330,21 +290,21 @@ public class SkosRDFImporter {
 	 * Therefore the Concepts are not retrievable from the database yet 
 	 * and we need to keep them in out lookup!
 	 *  
-	 * @param doc
+	 * @param model
 	 * @param eventContext
 	 * @param manifest
 	 * @throws ValidationError
 	 * @throws InvalidInputFormatError
 	 * @throws IntegrityError
 	 */
-	private void createVocabularyStructure(Model doc, final EventContext eventContext,
+	private void createVocabularyStructure(Model model, final EventContext eventContext,
 			final ImportLog manifest) throws ValidationError,
 			InvalidInputFormatError, IntegrityError {
 
 		logger.debug("Number of concepts in lookup: " + conceptLookup.size());
 
-		createBroaderNarrowerRelations(doc, eventContext, manifest);
-		createNonspecificRelations(doc, eventContext, manifest);
+		createBroaderNarrowerRelations(model, eventContext, manifest);
+		createNonspecificRelations(model, eventContext, manifest);
 	}
 
 	/**
@@ -367,13 +327,13 @@ public class SkosRDFImporter {
 			ConceptPlaceholder conceptPlaceholder = conceptLookup.get(skosId);
 			if (!conceptPlaceholder.broaderIds.isEmpty()) {
 				logger.debug("Concept with skos id [" + skosId 
-						+ "] has broader concepts of " + conceptPlaceholder.broaderIds.size());
+						+ "] has " + conceptPlaceholder.broaderIds.size() + " broader concepts");
 				// find them in the lookup
 				for (String bsId: conceptPlaceholder.broaderIds) {
-					logger.debug(bsId);
+//					logger.debug(bsId);
 					if (conceptLookup.containsKey(bsId)) {
 						// found
-						logger.debug("Found mapping from: " + bsId 
+						logger.debug("Found mapping from: " + skosId 
 								+ " to: " + conceptLookup.get(bsId).storeId);
 
 						createBroaderNarrowerRelation(conceptLookup.get(bsId), conceptPlaceholder);
@@ -409,14 +369,14 @@ public class SkosRDFImporter {
 	/**
 	 * Create the 'non-specific' relations for all the concepts
 	 * 
-	 * @param doc
+	 * @param model
 	 * @param eventContext
 	 * @param manifest
 	 * @throws ValidationError
 	 * @throws InvalidInputFormatError
 	 * @throws IntegrityError
 	 */
-	private void createNonspecificRelations(Model doc, final EventContext eventContext,
+	private void createNonspecificRelations(Model model, final EventContext eventContext,
 			final ImportLog manifest) throws ValidationError,
 			InvalidInputFormatError, IntegrityError {
 
@@ -426,13 +386,13 @@ public class SkosRDFImporter {
 			ConceptPlaceholder conceptPlaceholder = conceptLookup.get(skosId);
 			if (!conceptPlaceholder.relatedIds.isEmpty()) {
 				logger.debug("Concept with skos id [" + skosId 
-						+ "] has related concepts");
+						+ "] has "+conceptPlaceholder.relatedIds.size() + " related concepts");
 				// find them in the lookup
-				for (String toCId: conceptPlaceholder.relatedIds) {
+				for (String toCId : conceptPlaceholder.relatedIds) {
 					if (conceptLookup.containsKey(toCId)) {
 						// found
-						logger.debug("Found mapping from: " + toCId 
-								+ " to: " + conceptLookup.get(toCId).storeId);
+						logger.debug("Found mapping from: " + skosId 
+								+ " to: " + toCId);
 
 						createNonspecificRelation(conceptPlaceholder, conceptLookup.get(toCId));
 					} else {
@@ -528,34 +488,18 @@ public class SkosRDFImporter {
 		//<geo:long>20.716666666666665</geo:long>
 		extractAndAddToAllMapsSingleValuedTextToDescriptionData(descriptionData, Ontology.CONCEPT_LONG, model, GEO_LONG, skosConcept);
 
-		//<owl:sameAs>http://www.yadvashem.org/yv/he/research/ghettos_encyclopedia/ghetto_details.asp?cid=1</owl:sameAs>
+		//<owl:sameAs> relations should not exist here, but if they do, they must be...
 		//TODO: must be an UndeterminedRelation, which can then later be resolved
+		
+		// TODO: foaf:isPrimaryTopicOf -> links a topic to a web page. There is no property for it yet 
+		// (and should external URIs go in the concept, or in the descriptions?) 
 
 		// NOTE we could try to also add everything else, using the SKOS tagname as a key?
 
 		return descriptionData;
 	}
 
-//	private void extractAndAddToAllMapsSingleValuedTextToDescriptionData(Map<String, Object> descriptionData, 
-//			String textName, String skosName, Element conceptElement) {
-//		NodeList textNodeList = conceptElement.getElementsByTagName(skosName);
-//		for(int i=0; i<textNodeList.getLength(); i++){
-//			Node textNode = textNodeList.item(i);
-//			// get value
-//			String text = textNode.getTextContent();
-//			logger.debug("text: \"" + text + "\", skos name: " + skosName + ", property: " + textName);
-//
-//			// add to all descriptionData maps
-//			for(String key : descriptionData.keySet()){
-//				Object map = descriptionData.get(key);
-//				if(map instanceof Map){
-//					((Map<String, Object>)map).put(textName, text);
-//				}else{
-//					logger.warn(key + " no description map found");
-//				}
-//			}
-//		}    
-//	}
+
 
 	/**
 	 * Put the values associated with the resource-property combo in all descriptions

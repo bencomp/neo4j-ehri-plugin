@@ -22,8 +22,8 @@ public class SkosRDFImporterTest extends AbstractImporterTest {
 	private static final org.slf4j.Logger logger = LoggerFactory.getLogger(SkosRDFImporterTest.class);
     private final String FILENAME = "ehri-skos.rdf";
     
-    private final String CONCEPT_URI_1 = "http://ehri01.dans.knaw.nl/tematres/vocab/?tema=511";
-    private final String CONCEPT_URI_2 = "http://ehri01.dans.knaw.nl/tematres/vocab/?tema=512";
+    private final String CONCEPT_ID_1 = "cvoc1-http---ehri01-dans-knaw-nl-tematres-vocab--tema-511";
+    private final String CONCEPT_ID_2 = "cvoc1-http---ehri01-dans-knaw-nl-tematres-vocab--tema-512";
     private final String CONCEPTSCHEME_URI = "http://ehri01.dans.knaw.nl/tematres/vocab/";
 
 	@Test
@@ -67,13 +67,13 @@ public class SkosRDFImporterTest extends AbstractImporterTest {
          */
         assertEquals(beforeNodeCount + 881 + 1386 + 1 + 882, afterNodeCount);
 
-		
+		logger.debug(graph.getVertex(CONCEPT_ID_1).toString());
 		
 		Vocabulary scheme = (Vocabulary) graph.getVertex(CONCEPTSCHEME_URI);
 		
 		// Does Concept with URI <http://ehri01.dans.knaw.nl/tematres/vocab/?tema=511>
 		// 	have a description with English prefLabel "Prisoners of war"?
-		Concept con = (Concept) graph.getVertex(CONCEPT_URI_1);
+		Concept con = (Concept) graph.getVertex(CONCEPT_ID_1);
 		
 		for(Description des : con.getDescriptions()) {
 			if (des.getLanguageOfDescription().equals("en")) {
@@ -86,7 +86,7 @@ public class SkosRDFImporterTest extends AbstractImporterTest {
 		}
 		
 		for(Concept narrower : con.getNarrowerConcepts()) {
-			assertEquals(narrower, (Concept) graph.getVertex(CONCEPT_URI_2));
+			assertEquals(narrower, (Concept) graph.getVertex(CONCEPT_ID_2));
 		}
 		
 		// Does `con` have a link to the `scheme` Vocabulary? 
