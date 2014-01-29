@@ -98,8 +98,10 @@ public class EadHandler extends SaxXmlHandler {
                     //add any mandatory fields not yet there:
                 	// First: identifier(s), 
                     extractIdentifier(currentGraph);
-                    // 
+                    // Second: title
                     extractTitle(currentGraph);
+                    
+//                    extractEadLanguage(currentGraph);
                     
                     useDefaultLanguage(currentGraph);
                     
@@ -137,6 +139,16 @@ public class EadHandler extends SaxXmlHandler {
     }
 
     /**
+     * Handler-specific code for extraction or generation of description languages.
+	 * Default method is empty; override when necessary.
+     * @param currentGraph
+     */
+    protected void extractEadLanguage(Map<String, Object> currentGraph) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	/**
      * Checks given currentGraph for a language and sets a default language code
      * for the description if no language is found.
      * @param currentGraph

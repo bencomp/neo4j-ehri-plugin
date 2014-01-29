@@ -26,7 +26,7 @@ public class CegesomaEadHandler extends EadHandler {
 
     public CegesomaEadHandler(AbstractImporter<Map<String, Object>> importer) {
         super(importer, new XmlImportProperties("cegesoma.properties"));
-        this.defaultLanguage = "nl";
+        this.defaultLanguage = "nld";
     }
 
     /**
@@ -81,6 +81,15 @@ public class CegesomaEadHandler extends EadHandler {
             currentGraph.remove(Ontology.NAME_KEY+"Type");
         }
 	}
+    
+    /**
+     * Cegesoma uses 'N' for Dutch and 'F' for French; we need to expand these 'codes'
+     * to 'nld' and 'fre'.
+     */
+//    @Override
+//    protected void useDefaultLanguage(Map<String, Object> currentGraph) {
+//    	// TODO
+//    }
     
     
     @Override

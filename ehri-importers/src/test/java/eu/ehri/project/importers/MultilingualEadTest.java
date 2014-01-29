@@ -5,6 +5,8 @@ import static org.junit.Assert.*;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import eu.ehri.project.models.DocumentaryUnit;
+
 /**
  * Test stub for importing two EAD files describing the same documentary unit in different languages.
  * @author ben
@@ -12,7 +14,15 @@ import org.junit.Test;
  */
 public class MultilingualEadTest extends AbstractImporterTest {
 
-	
+	protected final String TEST_REPO = "r1";
+    protected final String XMLFILENL = "archief-8224-nl.xml";
+    protected final String XMLFILEFR = "archief-8224-fr.xml";
+    protected final String ARCHDESC = "AA 1593",
+            C01 = "cegesomaID1",
+            C02_01 = "AA 1134 / 32",
+            C02_02 = "AA 1134 / 34";
+    DocumentaryUnit archdesc, c1, c2_1, c2_2;
+    int origCount=0;
 	
 	/**
 	 * Import a Dutch archival description and then a French archival description
@@ -34,7 +44,7 @@ public class MultilingualEadTest extends AbstractImporterTest {
 		//   - 1 DocumentaryUnit
 		//   - 1 DocumentDescription
 		//   - x other nodes
-		
+		printGraph(graph);
 		
 		// import French description
 		
