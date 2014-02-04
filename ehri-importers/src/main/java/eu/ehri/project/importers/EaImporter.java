@@ -84,7 +84,7 @@ public abstract class EaImporter extends XmlImporter<Map<String, Object>> {
     }
     
     /**
-     * Extract properties from the itemData Map that are marked as unknown, put them in a new Map.
+     * Extract properties from the itemData Map that are marked as unknown, and return them in a new Map.
      * 
      * @param itemData a Map containing raw properties of a unit
      * @return returns a Map with all keys from itemData that start with SaxXmlHandler.UNKNOWN

@@ -37,6 +37,10 @@ public class EadHandler extends SaxXmlHandler {
      */
     protected String defaultLanguage = "eng";
     
+    /**
+     * EAD identifier as found in `<eadid>` in the currently handled EAD file
+     */
+    private String eadId;
 
     /**
      * Set a custom resolver so EAD DTDs are never looked up online.
@@ -57,6 +61,12 @@ public class EadHandler extends SaxXmlHandler {
         this(importer, new XmlImportProperties("icaatom.properties"));
     }
 
+    /**
+     * Create an EadHandler using some importer, and a mapping of paths to node properties.
+     * 
+     * @param importer
+     * @param xmlImportProperties
+     */
     public EadHandler(AbstractImporter<Map<String, Object>> importer,
 			XmlImportProperties xmlImportProperties) {
 		super(importer,xmlImportProperties);
@@ -84,12 +94,19 @@ public class EadHandler extends SaxXmlHandler {
 	 * Many EAD producers use the standard in their own special way, so this method calls generalised methods to filter, get data 
 	 * in the right place and reformat. 
 	 * If a collection of EAD files need special treatment to get specific data in the right place, you only need to override the 
-	 * other methods (extractTitle, extractIdentifier, extractDate). 
+	 * other methods (in order: extractIdentifier, extractTitle, extractDate). 
 	 */
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         //the child closes, add the new DocUnit to the list, establish some relations
         super.endElement(uri, localName, qName);
+        
+    	// If this is the <eadid> element, store its content
+//    	logger.debug("localName: " + localName + ", qName: " + qName);
+    	if (localName.equals("eadid") || qName.equals("eadid")) {
+    		eadId = (String) currentGraphPath.peek().get("eadId");
+    		logger.debug("Found <eadid>: "+ eadId);
+    	}
 
         if (needToCreateSubNode(qName)) {
             Map<String, Object> currentGraph = currentGraphPath.pop();
@@ -136,6 +153,14 @@ public class EadHandler extends SaxXmlHandler {
         }
 
         currentPath.pop();
+    }
+    
+    /**
+     * Get the EAD identifier of the EAD being imported
+     * @return the <code><eadid></code> or null if it was not parsed yet or empty
+     */
+    protected String getEadId() {
+    	return eadId;
     }
 
     /**

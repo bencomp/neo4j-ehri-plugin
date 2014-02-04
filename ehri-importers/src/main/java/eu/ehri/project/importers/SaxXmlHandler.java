@@ -54,6 +54,10 @@ public abstract class SaxXmlHandler extends DefaultHandler {
     protected final XmlImportProperties properties;
 
     protected int depth = 0;
+    
+    /**
+     * 
+     */
     private String languagePrefix;
 
     /**
@@ -78,11 +82,18 @@ public abstract class SaxXmlHandler extends DefaultHandler {
     protected abstract boolean needToCreateSubNode(String qName);
 
     /**
-     * Receive an opening tag.
+     * Receive an opening tag. Initialise the current text to store the characters,
+     * create a language map to hold descriptions in different languages,
+     * push the level if this element warrants a new sub-node and store the attributes 
+     * that need to be stored.
      */
     @Override
     public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
-        currentText.push("");
+        // initialise the text holding space
+    	currentText.push("");
+    	
+    	// retrieve the language from the attributes and
+    	// create a language map
         Optional<String> lang = languageAttribute(attributes);
         if (lang.isPresent()) {
             languagePrefix = lang.get();
@@ -96,6 +107,7 @@ public abstract class SaxXmlHandler extends DefaultHandler {
             }
         }
 
+        // Update the path with the new element name
         currentPath.push(withoutNamespace(qName));
         if (needToCreateSubNode(qName)) { //a new subgraph should be created
             depth++;
@@ -103,6 +115,7 @@ public abstract class SaxXmlHandler extends DefaultHandler {
             currentGraphPath.push(new HashMap<String, Object>());
         }
 
+        // Store attributes that are listed in the .properties file
         for (int attr = 0; attr < attributes.getLength(); attr++) { // only certain attributes get stored
             String attribute = withoutNamespace(attributes.getLocalName(attr));
             if (properties.hasAttributeProperty(attribute)
@@ -113,6 +126,10 @@ public abstract class SaxXmlHandler extends DefaultHandler {
 
     }
 
+    /**
+     * Receive an end element. Put the contents of the text holding space in the current graph
+     * as a property using the .properties file as a mapping.
+     */
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         languagePrefix = null;

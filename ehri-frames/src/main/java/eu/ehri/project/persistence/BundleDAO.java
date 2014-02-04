@@ -137,6 +137,7 @@ public final class BundleDAO {
      *
      * @param bundle
      * @return
+     * @throws RuntimeException when an item is said to exist, but could not be found
      */
     private Mutation<Vertex> createOrUpdateInner(Bundle bundle) {
         try {
@@ -153,10 +154,11 @@ public final class BundleDAO {
     }
 
     /**
-     * Insert a bundle and save it's dependent items.
+     * Insert a bundle and save its dependent items.
      *
-     * @param bundle
-     * @return
+     * @param bundle a Bundle to insert in the graph
+     * @return the Vertex that was created from this Bundle
+     * @throws RuntimeException when an ID generation error was not handled by the IdGenerator class
      */
     private Vertex createInner(Bundle bundle) {
         try {
