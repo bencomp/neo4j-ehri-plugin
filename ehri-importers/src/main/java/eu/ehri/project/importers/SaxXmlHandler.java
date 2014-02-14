@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package eu.ehri.project.importers;
 
 import com.google.common.base.Optional;
@@ -45,6 +41,7 @@ public abstract class SaxXmlHandler extends DefaultHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(SaxXmlHandler.class);
     public static final String UNKNOWN = "UNKNOWN_";
+    public static final String OBJECT_IDENTIFIER = "objectIdentifier";
     protected final Stack<Map<String, Object>> currentGraphPath = new Stack<Map<String, Object>>();
     protected final Map<String, Map<String, Object>> languageMap = Maps.newHashMap();
     protected final Stack<String> currentPath = new Stack<String>();
@@ -141,6 +138,7 @@ public abstract class SaxXmlHandler extends DefaultHandler {
 
 
     }
+
 
     /**
      * Insert a graph representation in the current graph (the one on top of 
