@@ -59,6 +59,11 @@ public class EadHandler extends SaxXmlHandler {
         return new org.xml.sax.InputSource(new java.io.StringReader(""));
     }
 
+    /**
+     * Create an EadHandler using some importer. The default mapping of paths to node properties is used.
+     * 
+     * @param importer
+     */
     @SuppressWarnings("unchecked")
     public EadHandler(AbstractImporter<Map<String, Object>> importer) {
         this(importer, new XmlImportProperties("icaatom.properties"));
@@ -278,6 +283,7 @@ public class EadHandler extends SaxXmlHandler {
             Object oids = currentGraph.get(Ontology.OTHER_IDENTIFIERS);
             if (oids != null && oids instanceof ArrayList<?>) {
                 ((ArrayList<String>) oids).add(otherIdentifier);
+            	logger.debug("alternative ID added");
             }
         } else {
             logger.debug("adding first alt id: " + otherIdentifier);
